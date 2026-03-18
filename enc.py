@@ -1,8 +1,8 @@
 import base64
 
 # 1. Tentukan nama file target dan nama file hasil output
-file_target = 'script_asli.py' 
-file_hasil = 'script_sebaris.py'
+file_target = 'enforcer.py' 
+file_hasil = 'script_hasil.py'
 
 try:
     # 2. Baca isi file Python mentah
