@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>🎮 MathQuest Hub | 5 Game + UNO Online</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #0c0c1d 0%, #1a1a3e 50%, #0f0f2a 100%);
+      min-height: 100vh; display: flex; justify-content: center; align-items: center;
+      padding: 12px; color: #f0e6d3; background-attachment: fixed;
+    }
+    .app-root { max-width: 800px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+
+    /* CARDS */
+    .hub-card, .game-card, .uno-card {
+      background: rgba(22, 22, 50, 0.8); backdrop-filter: blur(22px); border-radius: 40px;
+      padding: 22px 18px 26px; box-shadow: 0 30px 55px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,200,100,0.2);
+      border: 1px solid rgba(255,170,50,0.3);
+    }
+    .hub-title { font-size: 2.2rem; font-weight: 800; text-align: center; color: #ffbd5c; text-shadow: 0 0 20px #ff7b1c; }
+    .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 14px 0; }
+    .game-tile {
+      background: #1e1e44; border-radius: 24px; padding: 16px 10px; cursor: pointer;
+      transition: 0.2s; border: 2px solid #ff9f3c; text-align: center; font-weight: 700; color: #ffe5c2;
+    }
+    .game-tile:hover { background: #ffa23b; color: #10102a; border-color: #fff; transform: scale(1.03); }
+    .game-tile h3 { font-size: 1.3rem; }
+    .game-tile small { font-size: 0.75rem; opacity: 0.85; }
+
+    .user-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .btn { background: #ff9f3c; border: none; padding: 8px 16px; border-radius: 24px; font-weight: 700; cursor: pointer; color: #1a1a2e; transition: 0.15s; }
+    .btn:hover { background: #ffb85c; }
+    .btn-logout { background: #e04e6b; color: white; }
+    .btn-small { padding: 5px 12px; font-size: 0.8rem; border-radius: 16px; }
+
+    .hidden { display: none !important; }
+    .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .level-row { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
+    .lvl-btn { background: #2a2a55; border: none; padding: 7px 14px; border-radius: 18px; color: #ccc; cursor: pointer; font-weight: 700; }
+    .lvl-btn.active { background: #f7a641; color: #0b0b20; }
+
+    .question-box { background: #fcf3e6; border-radius: 44px; padding: 20px; color: #231f14; text-align: center; }
+    .q-text { font-size: 2.2rem; font-weight: 800; }
+    .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .opt-btn {
+      background: white; border: 3px solid #f3a33b; border-radius: 22px; padding: 12px;
+      font-weight: 700; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 0 #c07c36; transition: 0.08s;
+    }
+    .opt-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b1621e; }
+    .correct-glow { background: #b9f5b0; border-color: #1f7a1f; }
+    .wrong-flash { background: #ffafaf; border-color: #c44; }
+    .feedback { font-weight: 700; margin-top: 8px; font-size: 1rem; }
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+    .hint-box { background: #2a2a40; border-radius: 18px; padding: 10px; color: #ffe5a3; font-size: 0.9rem; margin-top: 6px; }
+    .leaderboard { background: #151530; border-radius: 24px; padding: 12px; border: 1px solid #ffb049; margin-top: 8px; }
+    .lb-row { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 0.9rem; }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; z-index:99; }
+    .auth-box { background:#202040; padding:28px; border-radius:44px; width:340px; display:flex; flex-direction:column; gap:14px; border:1px solid #ffad4a; }
+    .auth-box input { padding:10px; border-radius:24px; border:none; font-weight:700; background:#f5f5f5; }
+    .auth-tabs { display: flex; gap: 0; }
+    .auth-tab { flex:1; text-align:center; padding:10px; cursor:pointer; background:#2a2a50; color:#aaa; border-radius:20px 20px 0 0; font-weight:700; }
+    .auth-tab.active { background:#ff9f3c; color:#10102a; }
+
+    /* UNO */
+    .uno-table { background:#0a5c0a; border-radius:28px; padding:16px; min-height:300px; border:4px solid #333; }
+    .uno-hand { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:10px 0; }
+    .uno-card-item {
+      width:55px; height:80px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:1.1rem; cursor:pointer; border:2px solid #fff; box-shadow:2px 3px 8px rgba(0,0,0,0.5);
+      transition:0.1s; color:#fff; text-shadow:1px 1px 2px #000;
+    }
+    .uno-card-item:hover { transform:translateY(-8px); }
+    .uno-red { background:#e63946; }
+    .uno-blue { background:#1d3557; }
+    .uno-green { background:#2a9d2a; }
+    .uno-yellow { background:#e9c46a; color:#000; text-shadow:none; }
+    .uno-wild { background:#111; border-color:#f0f; }
+    .discard-pile { width:70px; height:100px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.5rem; margin:0 auto; border:3px solid #fff; }
+
+    /* CONFETTI */
+    .confetti-container { position:fixed; top:0;left:0;width:100%;height:100%; pointer-events:none; z-index:999; }
+    .confetti { position:absolute; font-size:2rem; animation:fall 2.5s ease-out forwards; }
+    @keyframes fall { 0%{transform:translateY(-10vh) rotate(0deg); opacity:1;} 100%{transform:translateY(110vh) rotate(720deg); opacity:0;} }
+
+    @media (max-width:480px) {
+      .q-text { font-size: 1.6rem; }
+      .uno-card-item { width:40px; height:60px; font-size:0.8rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-root" id="appRoot"></div>
+<div id="authModal" class="modal-overlay hidden">
+  <div class="auth-box">
+    <div class="auth-tabs"><div class="auth-tab active" id="tabSignIn">🔑 Sign In</div><div class="auth-tab" id="tabSignUp">✨ Sign Up</div></div>
+    <input type="text" id="authUsername" placeholder="Username" autocomplete="off">
+    <input type="password" id="authPassword" placeholder="Password">
+    <button class="btn" id="authSubmitBtn">🚀 Sign In</button>
+    <p style="font-size:0.75rem;color:#aaa;text-align:center;">Data tersimpan di browser ini</p>
+  </div>
+</div>
+<div id="confettiContainer" class="confetti-container"></div>
+
+<script>
+(function(){
+  // ==================== STORAGE ====================
+  const USERS_KEY = 'mq_users_v2';
+  const CURRENT_KEY = 'mq_current_v2';
+  let users = {};
+  let currentUser = null;
+  let authMode = 'signin'; // 'signin' | 'signup'
+
+  // ==================== STATE ====================
+  let activeGame = null;
+  let currentLevel = 'sd';
+
+  // Classic
+  let cScore=0, cIdx=0, cAnswered=false, cQuestion=null;
+  const TOTAL_Q = 10;
+
+  // Speedrun
+  let sScore=0, sIdx=0, sTimer=null, sTimeLeft=0, sAnswered=false, sQuestion=null;
+
+  // Puzzle
+  let pTarget=0, pNumbers=[], pAnswer='', pSolved=false;
+
+  // Target
+  let tGoal=0, tNumbers=[], tSolved=false;
+
+  // UNO
+  let peer=null, conn=null, roomId='', isUnoHost=false, unoStarted=false;
+  let unoDeck=[], unoDiscard=[], unoHand=[], unoOppHandCount=7, unoCurrentColor='', unoCurrentValue='';
+  let unoMyTurn=false, unoCalledUno=false, unoOppCalledUno=false;
+  const UNO_COLORS = ['red','blue','green','yellow'];
+
+  // ==================== HELPERS ====================
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function esc(s){ return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]); }
+  function confetti(){ for(let i=0;i<30;i++){setTimeout(()=>{let e=document.createElement('div');e.className='confetti';e.textContent=['🎉','🏆','✨','🌟','🥇','🃏'][rand(0,5)];e.style.left=Math.random()*100+'%';e.style.animationDuration=(1.5+Math.random()*2)+'s';document.getElementById('confettiContainer').appendChild(e);setTimeout(()=>e.remove(),3000)},i*35);} }
+
+  function loadUsers(){ let d=localStorage.getItem(USERS_KEY); users=d?JSON.parse(d):{}; }
+  function saveUsers(){ localStorage.setItem(USERS_KEY,JSON.stringify(users)); }
+  function getCurrentUser(){ return localStorage.getItem(CURRENT_KEY); }
+  function setCurrentUser(u){ localStorage.setItem(CURRENT_KEY,u); }
+  function clearCurrentUser(){ localStorage.removeItem(CURRENT_KEY); }
+
+  function getScore(game){ if(!currentUser)return 0; loadUsers(); return users[currentUser]?.[game]||0; }
+  function updateScore(game, delta){
+    if(!currentUser)return; loadUsers();
+    if(!users[currentUser]) users[currentUser]={password:'',classic:0,speedrun:0,puzzle:0,target:0,uno:0};
+    users[currentUser][game] = Math.max(0, (users[currentUser][game]||0) + delta);
+    saveUsers();
+  }
+  function getLeaderboard(game){
+    loadUsers();
+    return Object.entries(users).filter(([_,d])=>d[game]!==undefined).map(([u,d])=>({user:u, score:d[game]||0})).sort((a,b)=>b.score-a.score).slice(0,6);
+  }
+
+  function generateQuestion(level){
+    let t,c;
+    if(level==='sd'){
+      let a=rand(2,20),b=rand(2,15),op=rand(0,2);
+      if(op===0){c=a+b;t=`${a}+${b}=?`}else if(op===1){c=a-b;t=`${a}-${b}=?`}else{c=a*b;t=`${a}×${b}=?`}
+    }else if(level==='smp'){
+      let op=rand(0,3);
+      if(op===0){let b=rand(2,9);c=b*b;t=`${b}²=?`}
+      else if(op===1){let p=rand(10,90);let per=[10,20,30][rand(0,2)];c=Math.round(p*per/100);t=`${per}% dari ${p}=?`}
+      else if(op===2){let x=rand(2,7);c=x;t=`3x+4=${3*x+4}, x=?`}
+      else{let d=rand(2,5),n1=rand(1,d),n2=rand(1,d);c=(n1+n2)/d;t=`${n1}/${d}+${n2}/${d}=?`}
+    }else{
+      let op=rand(0,3);
+      if(op===0){let a=[30,45,60][rand(0,2)];c=a===30?0.5:a===45?0.7071:0.866;c=Math.round(c*100)/100;t=`sin(${a}°)≈?`}
+      else if(op===1){let b=rand(2,4),arg=Math.pow(b,rand(1,2));c=Math.log(arg)/Math.log(b);t=`log${b}(${arg})=?`}
+      else if(op===2){let n=rand(3,6);c=1;for(let i=2;i<=n;i++)c*=i;t=`${n}!=?`}
+      else{let a=rand(1,3),e=rand(2,3);c=Math.pow(a,e);t=`${a}^${e}=?`}
+    }
+    let opts=new Set([c]); while(opts.size<4){let f=c+rand(-5,5); if(f!==c&&!opts.has(f))opts.add(f);}
+    return {text:t, correct:c, options:Array.from(opts).sort(()=>Math.random()-0.5)};
+  }
+
+  // ==================== AUTH ====================
+  function showAuth(){ document.getElementById('authModal').classList.remove('hidden'); }
+  function hideAuth(){ document.getElementById('authModal').classList.add('hidden'); }
+  function setAuthTab(mode){
+    authMode=mode;
+    document.getElementById('tabSignIn').classList.toggle('active', mode==='signin');
+    document.getElementById('tabSignUp').classList.toggle('active', mode==='signup');
+    document.getElementById('authSubmitBtn').textContent = mode==='signin' ? '🚀 Sign In' : '✨ Sign Up';
+  }
+  function handleAuth(){
+    let u = document.getElementById('authUsername').value.trim();
+    let p = document.getElementById('authPassword').value;
+    if(!u||!p){ alert('Isi username & password!'); return; }
+    loadUsers();
+    if(authMode==='signup'){
+      if(users[u]){ alert('Username sudah terdaftar! Silakan Sign In.'); return; }
+      users[u] = {password:p, classic:0, speedrun:0, puzzle:0, target:0, uno:0};
+      saveUsers();
+      currentUser=u; setCurrentUser(u); hideAuth(); renderHub();
+    }else{
+      if(!users[u]){ alert('Username tidak ditemukan! Silakan Sign Up.'); return; }
+      if(users[u].password!==p){ alert('Password salah!'); return; }
+      currentUser=u; setCurrentUser(u); hideAuth(); renderHub();
+    }
+  }
+  function logout(){
+    if(conn) conn.close();
+    if(peer) peer.destroy();
+    currentUser=null; clearCurrentUser(); activeGame=null; showAuth(); renderHub();
+  }
+
+  // ==================== HUB ====================
+  function renderHub(){
+    if(!currentUser){ document.getElementById('appRoot').innerHTML='<div style="text-align:center;padding:40px;"><h2>🔒 Silakan login</h2><button class="btn" onclick="document.getElementById(\'authModal\').classList.remove(\'hidden\')">Login</button></div>'; if(!document.getElementById('authModal').classList.contains('hidden')){} return; }
+    let games = [
+      {id:'classic',name:'Classic',icon:'🏰',desc:'10 soal ronde'},
+      {id:'speedrun',name:'Speedrun',icon:'⚡',desc:'Kejar waktu!'},
+      {id:'puzzle',name:'Puzzle',icon:'🧩',desc:'Susun angka'},
+      {id:'target',name:'Target Hunt',icon:'🎯',desc:'Cari pasangan'},
+      {id:'uno',name:'UNO Online',icon:'🃏',desc:'Duel kartu!'},
+    ];
+    document.getElementById('appRoot').innerHTML=`
+      <div class="hub-card">
+        <div class="user-bar"><span>👤 ${esc(currentUser)}</span><button class="btn btn-logout" id="logoutHubBtn">🚪 Keluar</button></div>
+        <div class="hub-title">🎮 MathQuest Hub</div>
+        <div class="game-grid">${games.map(g=>`
+          <div class="game-tile" data-game="${g.id}"><h3>${g.icon}</h3><h3>${g.name}</h3><p>${g.desc}</p><small>🏆 ${getScore(g.id)}</small></div>
+        `).join('')}</div>
+        ${['classic','speedrun','puzzle','target','uno'].map(g=>`
+          <div class="leaderboard"><b>🏅 ${g.toUpperCase()}</b><div>${getLeaderboard(g).map(l=>`<div class="lb-row"><span>#${getLeaderboard(g).indexOf(l)+1} ${esc(l.user)}</span><span>${l.score}</span></div>`).join('')||'<small>Belum ada skor</small>'}</div></div>
+        `).join('')}
+      </div>
+    `;
+    document.getElementById('logoutHubBtn').addEventListener('click',logout);
+    document.querySelectorAll('.game-tile').forEach(t=>t.addEventListener('click',function(){startGame(this.dataset.game);}));
+  }
+
+  function startGame(game){
+    activeGame=game; currentLevel='sd';
+    if(game==='classic'){ cScore=0; cIdx=0; renderClassic(); }
+    else if(game==='speedrun'){ sScore=0; sIdx=0; renderSpeedrun(); }
+    else if(game==='puzzle'){ generatePuzzle(); renderPuzzle(); }
+    else if(game==='target'){ generateTarget(); renderTarget(); }
+    else if(game==='uno'){ renderUnoLobby(); }
+  }
+  function backToHub(){
+    if(activeGame==='speedrun' && sTimer) clearInterval(sTimer);
+    if(conn) conn.close();
+    if(peer) peer.destroy();
+    activeGame=null; renderHub();
+  }
+
+  // ==================== CLASSIC ====================
+  function renderClassic(){
+    document.getElementById('appRoot').innerHTML=`
+      <div class="game-card"><div class="header"><button class="btn" id="backBtn">◀ Hub</button><span>🏰 Classic</span><button class="btn" id="surrenderBtn">🏳️ Menyerah</button></div>
+      <div class="level-row">${['sd','smp','sma'].map(l=>`<button class="lvl-btn ${currentLevel===l?'active':''}" data-l="${l}">${l.toUpperCase()}</button>`).join('')}</div>
+      <div>📋 <span id="prog">1/10</span> | ⭐ Skor: <span id="sc">${cScore}</span> | 🏆 ${getScore('classic')}</div>
+      <div class="question-box"><div class="q-text" id="qT"></div><div class="options-grid" id="opts"></div><div class="feedback" id="fb"></div></div>
+      <div class="action-row"><button class="btn" id="hintBtn">💡 Hint</button><button class="btn" id="nextBtn" disabled>▶ Lanjut</button></div>
+      <div class="hint-box hidden" id="hintBox"></div></div>
+    `;
+    document.getElementById('backBtn').addEventListener('click',backToHub);
+    document.getElementById('surrenderBtn').addEventListener('click',()=>{updateScore('classic',-2);backToHub();});
+    document.querySelectorAll('.lvl-btn').forEach(b=>b.addEventListener('click',function(){currentLevel=this.dataset.l;cScore=0;cIdx=0;renderClassic();}));
+    document.getElementById('hintBtn').addEventListener('click',()=>{let h=document.getElementById('hintBox');h.classList.toggle('hidden');h.textContent='💡 Jawaban: '+cQuestion.correct;});
+    document.getElementById('nextBtn').addEventListener('click',classicNext);
+    loadClassicQ();
+  }
+  function loadClassicQ(){
+    if(cIdx>=TOTAL_Q){ finishClassic(); return; }
+    cQuestion=generateQuestion(currentLevel); cAnswered=false;
+    document.getElementById('qT').textContent=cQuestion.text;
+    document.getElementById('prog').textContent=(cIdx+1)+'/10'; document.getElementById('sc').textContent=cScore;
+    document.getElementById('fb').textContent=''; let oc=document.getElementById('opts'); oc.innerHTML='';
+    cQuestion.options.forEach(o=>{let b=document.createElement('button');b.className='opt-btn';b.textContent=o;b.addEventListener('click',function(){classicAnswer(o,b);});oc.appendChild(b);});
+    document.getElementById('nextBtn').disabled=true;
+  }
+  function classicAnswer(v,btn){
+    if(cAnswered)return; cAnswered=true;
+    let correct=cQuestion.correct, isCorrect=(v===correct);
+    document.querySelectorAll('#opts .opt-btn').forEach(b=>{b.style.pointerEvents='none';if(parseFloat(b.textContent)===correct)b.classList.add('correct-glow');else if(b===btn&&!isCorrect)b.classList.add('wrong-flash');});
+    if(isCorrect){cScore++;document.getElementById('fb').textContent='✅ Benar!';updateScore('classic',1);}
+    else{document.getElementById('fb').textContent='❌ Jawaban: '+correct;updateScore('classic',-1);}
+    document.getElementById('sc').textContent=cScore; document.getElementById('nextBtn').disabled=false;
+  }
+  function classicNext(){ cIdx++; loadClassicQ(); }
+  function finishClassic(){ if(cScore===TOTAL_Q){confetti();updateScore('classic',3);} backToHub(); }
+
+  // ==================== SPEEDRUN ====================
+  function renderSpeedrun(){
+    document.getElementById('appRoot').innerHTML=`
+      <div class="game-card"><div class="header"><button class="btn" id="backBtn">◀ Hub</button><span>⚡ Speedrun</span><button class="btn" id="surrenderBtn">🏳️ Menyerah</button></div>
+      <div class="level-row">${['sd','smp','sma'].map(l=>`<button class="lvl-btn ${currentLevel===l?'active':''}" data-l="${l}">${l.toUpperCase()}</button>`).join('')}</div>
+      <div>⏱ <span id="timerDisp">12</span>s | ⭐ Skor: <span id="sc">${sScore}</span> | 🏆 ${getScore('speedrun')}</div>
+      <div class="question-box"><div class="q-text" id="qT"></div><div class="options-grid" id="opts"></div><div class="feedback" id="fb"></div></div>
+      <div class="action-row"><button class="btn" id="hintBtn">💡 Hint</button></div><div class="hint-box hidden" id="hintBox"></div></div>
+    `;
+    document.getElementById('backBtn').addEventListener('click',()=>{clearInterval(sTimer);backToHub();});
+    document.getElementById('surrenderBtn').addEventListener('click',()=>{clearInterval(sTimer);updateScore('speedrun',-2);backToHub();});
+    document.querySelectorAll('.lvl-btn').forEach(b=>b.addEventListener('click',function(){currentLevel=this.dataset.l;sScore=0;sIdx=0;renderSpeedrun();}));
+    document.getElementById('hintBtn').addEventListener('click',()=>{let h=document.getElementById('hintBox');h.classList.toggle('hidden');h.textContent='💡 Jawaban: '+sQuestion.correct;});
+    loadSpeedQ();
+  }
+  function loadSpeedQ(){
+    sQuestion=generateQuestion(currentLevel); sAnswered=false; sTimeLeft=12;
+    document.getElementById('qT').textContent=sQuestion.text; document.getElementById('sc').textContent=sScore;
+    document.getElementById('fb').textContent=''; let oc=document.getElementById('opts'); oc.innerHTML='';
+    sQuestion.options.forEach(o=>{let b=document.createElement('button');b.className='opt-btn';b.textContent=o;b.addEventListener('click',function(){speedAnswer(o,b);});oc.appendChild(b);});
+    clearInterval(sTimer);
+    sTimer=setInterval(()=>{sTimeLeft-=0.1;document.getElementById('timerDisp').textContent=Math.max(0,sTimeLeft).toFixed(1);if(sTimeLeft<=0){clearInterval(sTimer);if(!sAnswered)speedTimeout();}},100);
+  }
+  function speedAnswer(v,btn){
+    if(sAnswered)return; sAnswered=true; clearInterval(sTimer);
+    let correct=sQuestion.correct, isCorrect=(v===correct);
+    document.querySelectorAll('#opts .opt-btn').forEach(b=>{b.style.pointerEvents='none';if(parseFloat(b.textContent)===correct)b.classList.add('correct-glow');else if(b===btn&&!isCorrect)b.classList.add('wrong-flash');});
+    if(isCorrect){let bonus=Math.floor(sTimeLeft);sScore+=bonus;document.getElementById('fb').textContent=`✅ +${bonus}!`;updateScore('speedrun',bonus);}
+    else{document.getElementById('fb').textContent='❌ Jawaban: '+correct;updateScore('speedrun',-1);}
+    document.getElementById('sc').textContent=sScore;
+    setTimeout(()=>{sIdx++;loadSpeedQ();},1000);
+  }
+  function speedTimeout(){ sAnswered=true; document.getElementById('fb').textContent='⏰ Waktu habis! '+sQuestion.correct; updateScore('speedrun',-1); document.getElementById('sc').textContent=sScore; document.querySelectorAll('#opts .opt-btn').forEach(b=>b.style.pointerEvents='none'); setTimeout(()=>{sIdx++;loadSpeedQ();},1200); }
+
+  // ==================== PUZZLE ====================
+  function generatePuzzle(){
+    let a=rand(2,15),b=rand(2,10),op=rand(0,1);
+    pTarget=op===0?a+b:a*b; pNumbers=[a,b,rand(1,8),rand(1,8)].sort(()=>Math.random()-0.5);
+    pAnswer=op===0?`${a}+${b}`:`${a}×${b}`; pSolved=false;
+  }
+  function renderPuzzle(){
+    document.getElementById('appRoot').innerHTML=`
+      <div class="game-card"><div class="header"><button class="btn" id="backBtn">◀ Hub</button><span>🧩 Puzzle</span><button class="btn" id="surrenderBtn">🏳️ Menyerah</button></div>
+      <p>🎯 Target: <b>${pTarget}</b> | 🔢 ${pNumbers.join(' • ')}</p>
+      <div class="options-grid" id="pOpts">${pNumbers.map(n=>`<button class="opt-btn" data-n="${n}">${n}</button>`).join('')}</div>
+      <button class="btn" id="pCheck">✅ Cek (pilih 2 angka dulu)</button><div class="feedback" id="fb"></div>
+      <div class="action-row"><button class="btn" id="hintBtn">💡 Hint</button></div><div class="hint-box hidden" id="hintBox"></div></div>
+    `;
+    let sel=[];
+    document.querySelectorAll('#pOpts .opt-btn').forEach(b=>b.addEventListener('click',function(){if(pSolved)return;let n=parseInt(this.dataset.n);if(sel.length<2&&!sel.includes(n)){sel.push(n);this.style.background='#ffb03b';}if(sel.length===2)document.getElementById('pCheck').textContent=`✅ ${sel[0]}+${sel[1]} atau ×`;}));
+    document.getElementById('pCheck').addEventListener('click',()=>{if(sel.length!==2)return;let [x,y]=sel;if(x+y===pTarget||x*y===pTarget){pSolved=true;document.getElementById('fb').textContent='🎉 Benar! +5';updateScore('puzzle',5);confetti();}else{document.getElementById('fb').textContent='❌ Salah! -1';updateScore('puzzle',-1);}});
+    document.getElementById('hintBtn').addEventListener('click',()=>{let h=document.getElementById('hintBox');h.classList.toggle('hidden');h.textContent='💡 '+pAnswer;});
+    document.getElementById('backBtn').addEventListener('click',backToHub);
+    document.getElementById('surrenderBtn').addEventListener('click',()=>{updateScore('puzzle',-1);backToHub();});
+  }
+
+  // ==================== TARGET ====================
+  function generateTarget(){ tGoal=rand(10,50); let pool=[]; for(let i=1;i<=20;i++)pool.push(i); tNumbers=pool.sort(()=>Math.random()-0.5).slice(0,6); tSolved=false; }
+  function renderTarget(){
+    document.getElementById('appRoot').innerHTML=`
+      <div class="game-card"><div class="header"><button class="btn" id="backBtn">◀ Hub</button><span>🎯 Target Hunt</span><button class="btn" id="surrenderBtn">🏳️ Menyerah</button></div>
+      <p>🎯 Sasaran: <b>${tGoal}</b> | 🔢 ${tNumbers.join(' • ')}</p>
+      <div class="options-grid" id="tOpts">${tNumbers.map(n=>`<button class="opt-btn" data-n="${n}">${n}</button>`).join('')}</div>
+      <button class="btn" id="tCheck">✅ Cek Jumlah</button><div class="feedback" id="fb"></div>
+      <div class="action-row"><button class="btn" id="hintBtn">💡 Hint</button></div><div class="hint-box hidden" id="hintBox"></div></div>
+    `;
+    let sel=[];
+    document.querySelectorAll('#tOpts .opt-btn').forEach(b=>b.addEventListener('click',function(){if(tSolved)return;let n=parseInt(this.dataset.n);if(sel.length<2&&!sel.includes(n)){sel.push(n);this.style.background='#ffb03b';}}));
+    document.getElementById('tCheck').addEventListener('click',()=>{if(sel.length!==2)return;if(sel[0]+sel[1]===tGoal){tSolved=true;document.getElementById('fb').textContent='🎉 Pas! +4';updateScore('target',4);confetti();}else{document.getElementById('fb').textContent='❌ Bukan! -1';updateScore('target',-1);}});
+    document.getElementById('hintBtn').addEventListener('click',()=>{let h=document.getElementById('hintBox');h.classList.toggle('hidden');let pair=[];for(let i=0;i<tNumbers.length;i++)for(let j=i+1;j<tNumbers.length;j++)if(tNumbers[i]+tNumbers[j]===tGoal)pair=[tNumbers[i],tNumbers[j]];h.textContent='💡 '+ (pair.length?pair.join(' + '):'tidak ada');});
+    document.getElementById('backBtn').addEventListener('click',backToHub);
+    document.getElementById('surrenderBtn').addEventListener('click',()=>{updateScore('target',-1);backToHub();});
+  }
+
+  // ==================== UNO ONLINE ====================
+  function createUnoDeck(){
+    let deck=[];
+    UNO_COLORS.forEach(color=>{
+      for(let i=0;i<=9;i++){ deck.push({color,value:i.toString()}); if(i!==0) deck.push({color,value:i.toString()}); }
+      deck.push({color,value:'skip'},{color,value:'reverse'},{color,value:'+2'});
+    });
+    for(let i=0;i<4;i++){ deck.push({color:'wild',value:'wild'}); deck.push({color:'wild',value:'+4'}); }
+    return deck.sort(()=>Math.random()-0.5);
+  }
+  function renderUnoLobby(){
+    document.getElementById('appRoot').innerHTML=`
+      <div class="uno-card"><div class="header"><button class="btn" id="backUno">◀ Hub</button><span>🃏 UNO Online</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;">
+        <button class="btn" id="createRoomBtn">🏠 Buat Room</button>
+        <div><input type="text" id="roomIdInput" placeholder="Room ID" style="padding:8px;border-radius:16px;border:none;"><button class="btn" id="joinRoomBtn">🔗 Join Room</button></div>
+      </div>
+      <p id="roomStatus">Status: Menunggu...</p>
+      <div id="unoGameArea" class="hidden"><div class="uno-table" id="unoTable"></div></div>
+      <div class="leaderboard"><b>🏅 UNO</b>${getLeaderboard('uno').map(l=>`<div class="lb-row"><span>${esc(l.user)}</span><span>${l.score}</span></div>`).join('')||'<small>Belum ada skor</small>'}</div></div>
+    `;
+    document.getElementById('backUno').addEventListener('click',()=>{if(conn)conn.close();if(peer)peer.destroy();backToHub();});
+    document.getElementById('createRoomBtn').addEventListener('click',createUnoRoom);
+    document.getElementById('joinRoomBtn').addEventListener('click',joinUnoRoom);
+  }
+  function createUnoRoom(){
+    roomId = 'uno-'+Math.random().toString(36).substring(2,8);
+    document.getElementById('roomStatus').textContent='⏳ Membuat room: '+roomId;
+    initPeer(true);
+  }
+  function joinUnoRoom(){
+    roomId = document.getElementById('roomIdInput').value.trim();
+    if(!roomId){alert('Masukkan Room ID!');return;}
+    document.getElementById('roomStatus').textContent='⏳ Join room: '+roomId;
+    initPeer(false);
+  }
+  function initPeer(host){
+    if(peer) peer.destroy();
+    peer = new Peer(undefined, {debug:0});
+    peer.on('open',(id)=>{
+      if(host){
+        document.getElementById('roomStatus').textContent='✅ Room dibuat! ID: '+roomId+' (bagikan ke lawan)';
+      }
+    });
+    if(host){
+      peer.on('connection',(c)=>{
+        conn=c; isUnoHost=true; setupUnoConnection();
+        document.getElementById('roomStatus').textContent='🟢 Lawan terhubung!';
+        startUnoGame();
+      });
+    }else{
+      conn = peer.connect(roomId, {reliable:true});
+      conn.on('open',()=>{ isUnoHost=false; setupUnoConnection();
+        document.getElementById('roomStatus').textContent='🟢 Terhubung ke room!';
+        conn.send({type:'request_start'});
+      });
+    }
+    peer.on('error',(e)=>{document.getElementById('roomStatus').textContent='❌ Error: '+e.type;});
+  }
+  function setupUnoConnection(){
+    conn.on('data',(data)=>{
+      if(data.type==='request_start') startUnoGame();
+      else if(data.type==='uno_state') receiveUnoState(data);
+      else if(data.type==='uno_win'){ alert('🎉 Lawan menang!'); updateScore('uno',-3); backToHub(); }
+      else if(data.type==='uno_call'){ unoOppCalledUno=true; }
+    });
+    conn.on('close',()=>{ document.getElementById('roomStatus').textContent='🔴 Koneksi terputus'; });
+  }
+  function startUnoGame(){
+    unoDeck=createUnoDeck();
+    unoHand=[]; unoDiscard=[]; for(let i=0;i<7;i++) unoHand.push(unoDeck.pop());
+    do { unoDiscard.push(unoDeck.pop()); } while(unoDiscard[0].color==='wild');
+    unoCurrentColor=unoDiscard[0].color; unoCurrentValue=unoDiscard[0].value;
+    unoMyTurn=isUnoHost; unoOppHandCount=7; unoCalledUno=false; unoOppCalledUno=false; unoStarted=true;
+    unoDeck=unoDeck.sort(()=>Math.random()-0.5);
+    sendUnoState(); renderUnoGame();
+  }
+  function sendUnoState(){ if(conn) conn.send({type:'uno_state', handCount:unoHand.length, discard:{color:unoCurrentColor,value:unoCurrentValue}, myTurn:!isUnoHost, oppCalled:unoCalledUno}); }
+  function receiveUnoState(data){
+    unoOppHandCount=data.handCount; unoCurrentColor=data.discard.color; unoCurrentValue=data.discard.value;
+    unoMyTurn=data.myTurn; unoOppCalledUno=data.oppCalled||false;
+    renderUnoGame();
+    if(unoOppHandCount===1 && !unoOppCalledUno) document.getElementById('roomStatus').textContent='⚠️ Lawan tinggal 1 kartu!';
+  }
+  function canPlayCard(card){
+    if(card.color==='wild') return true;
+    if(card.color===unoCurrentColor || card.value===unoCurrentValue) return true;
+    return false;
+  }
+  function playUnoCard(index){
+    if(!unoMyTurn || !unoStarted) return;
+    let card = unoHand[index];
+    if(!canPlayCard(card)) return;
+    unoHand.splice(index,1);
+    unoDiscard.push(card);
+    unoCurrentColor=card.color; unoCurrentValue=card.value;
+    if(unoHand.length===0){ conn.send({type:'uno_win'}); alert('🎉 Kamu menang! +10'); updateScore('uno',10); confetti(); backToHub(); return; }
+    if(unoHand.length===1 && !unoCalledUno){ unoCalledUno=true; document.getElementById('roomStatus').textContent='📢 Kamu bilang UNO!'; }
+    if(card.value==='skip'){ unoMyTurn=false; sendUnoState(); renderUnoGame(); return; }
+    if(card.value==='reverse'){ /* 2 player = skip */ unoMyTurn=false; sendUnoState(); renderUnoGame(); return; }
+    if(card.value==='+2'){ for(let i=0;i<2;i++) if(unoDeck.length)unoHand.push(unoDeck.pop()); }
+    if(card.value==='+4'){ for(let i=0;i<4;i++) if(unoDeck.length)unoHand.push(unoDeck.pop()); }
+    unoMyTurn=false; sendUnoState(); renderUnoGame();
+  }
+  function drawUnoCard(){
+    if(!unoMyTurn) return;
+    if(unoDeck.length) unoHand.push(unoDeck.pop());
+    unoMyTurn=false; sendUnoState(); renderUnoGame();
+  }
+  function renderUnoGame(){
+    let area = document.getElementById('unoGameArea');
+    if(!area) return;
+    area.classList.remove('hidden');
+    let disc = unoDiscard[unoDiscard.length-1];
+    let dc = disc.color==='red'?'uno-red':disc.color==='blue'?'uno-blue':disc.color==='green'?'uno-green':disc.color==='yellow'?'uno-yellow':'uno-wild';
+    area.innerHTML=`
+      <p>🃏 Lawan: <b>${unoOppHandCount}</b> kartu ${unoOppCalledUno?'📢 UNO!':''}</p>
+      <div class="discard-pile ${dc}">${disc.value.toUpperCase()}</div>
+      <p style="text-align:center;">Warna: <b>${unoCurrentColor}</b> | ${unoMyTurn?'🟢 Giliranmu!':'⏳ Tunggu lawan...'}</p>
+      <div class="uno-hand">${unoHand.map((c,i)=>`<div class="uno-card-item ${c.color==='red'?'uno-red':c.color==='blue'?'uno-blue':c.color==='green'?'uno-green':c.color==='yellow'?'uno-yellow':'uno-wild'}" onclick="${unoMyTurn?'playUnoCard('+i+')':''}">${c.value}</div>`).join('')}</div>
+      <div class="action-row">${unoMyTurn?'<button class="btn" onclick="drawUnoCard()">🃏 Ambil Kartu</button>':''}</div>
+    `;
+  }
+  window.playUnoCard = playUnoCard;
+  window.drawUnoCard = drawUnoCard;
+
+  // ==================== INIT ====================
+  window.addEventListener('load',()=>{
+    loadUsers();
+    let saved = getCurrentUser();
+    if(saved && users[saved]){ currentUser=saved; hideAuth(); renderHub(); }
+    else { showAuth(); document.getElementById('appRoot').innerHTML='<div style="text-align:center;padding:40px;"><h2>🔒 Silakan login</h2></div>'; }
+    document.getElementById('authSubmitBtn').addEventListener('click',handleAuth);
+    document.getElementById('tabSignIn').addEventListener('click',()=>setAuthTab('signin'));
+    document.getElementById('tabSignUp').addEventListener('click',()=>setAuthTab('signup'));
+    document.getElementById('authPassword').addEventListener('keypress',e=>{if(e.key==='Enter')handleAuth();});
+  });
+})();
+</script>
+</body>
+</html>
